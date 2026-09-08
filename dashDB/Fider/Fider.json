@@ -1,0 +1,1 @@
+{"name":"Fider","tables":{"folders":{"values":{"id":"int","user_id":"int","parent_id":"int","name":"str32","created_at":"long"},"entries":1,"pages":[0],"emptyBlocks":[]},"files":{"values":{"id":"int","user_id":"int","folder_id":"int","name":"str32","path":"str36","size":"int","mime":"str64","uploaded_at":"long"},"entries":1,"pages":[1],"emptyBlocks":[]}}}
