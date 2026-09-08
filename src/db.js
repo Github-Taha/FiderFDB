@@ -68,7 +68,7 @@ class DataBase {
         return count;
     }
 
-    async setMetaData (dbname) {
+    async setMetaData () {
         let metadata = {
             name: this.dbname,
             tables: {}
@@ -78,7 +78,7 @@ class DataBase {
             metadata.tables[this.tableNames[tableIndex]] = this.tables[tableIndex].getMetadata();
         }
 
-        await writeFile(`dashDB/${dbname}/${dbname}.json`, JSON.stringify(metadata));
+        await writeFile(`dashDB/${this.dbname}/${this.dbname}.json`, JSON.stringify(metadata));
     }
 }
 

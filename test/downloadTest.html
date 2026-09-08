@@ -72,7 +72,7 @@
         <script>
             const getFileBttn = document.querySelector("#get-file");
 
-            const mend = new Mend("https://d588-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
+            const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
 
             getFileBttn.addEventListener("mousedown", () => {
                 if (!getFileBttn.hasAttribute("down"))
@@ -181,6 +181,8 @@
                         a.href = url;
                         a.download = filename ? filename : "file.txt";
                         a.click();
+
+                        alert(`File '${filename}' has been downloaded.`);
 
                         URL.revokeObjectURL(url);
 

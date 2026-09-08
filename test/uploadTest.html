@@ -66,13 +66,13 @@
     </head>
     <body>
 
-        <button id="get-file" type="button">Get File</button>
+        <button id="get-file" type="button">Upload File</button>
 
         <script src="mendlib.js"></script>
         <script>
             const getFileBttn = document.querySelector("#get-file");
 
-            const mend = new Mend("https://d588-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
+            const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
 
             getFileBttn.addEventListener("mousedown", () => {
                 if (!getFileBttn.hasAttribute("down"))
@@ -117,28 +117,37 @@
                 }
             }
 
-            async function getFileURL (ott, path) {
+            async function getUploadURL (ott, parent, name, mime) {
                 console.log("FiderFDB: " + await mend.get("fiderfdb"));
                 for (let i = 0; i < 2; i++) {
                     try {
-                        const response = await fetch(await mend.get("fiderfdb") + "/file/download", {
+                        const response = await fetch(await mend.get("fiderfdb") + "/file/upload", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
                                 "ngrok-skip-browser-warning": "true",
                                 "bypass-tunnel-reminder": "true",
                             },
-                            body: JSON.stringify({ token: ott, path: path })
+                            body: JSON.stringify({
+                                token: ott, 
+                                parent: parent,
+                                name: name,
+                                mime: mime
+                            })
                         });
         
-                        if (!response.ok) {
-                            throw new Error("Getting Download URL Failed");
+                        if (response.status == 404) {
+                            throw new Error("Getting Upload URL Failed");
                         }
 
-                        const { downloadURL } = await response.json();
-                        console.log(downloadURL);
+                        const data = await response.json();
+                        
+                        if (response.status == 400) {
+                            console.error(data.error);
+                            return false;
+                        }
 
-                        return downloadURL;
+                        return data.uploadURL;
                     }
                     catch (err) {
                         if (i === 0) {
@@ -154,35 +163,21 @@
                 }
             }
 
-            async function getFile (downloadURL) {
+            async function uploadFile (uploadURL) {
                 console.log("FiderFDB: " + await mend.get("fiderfdb"));
                 for (let i = 0; i < 2; i++) {
                     try {
-                        const response = await fetch(`${await mend.get("fiderfdb")}/file/download/${downloadURL}`, {
-                            method: "GET",
+                        const response = await fetch(`${await mend.get("fiderfdb")}/file/upload/${uploadURL}`, {
+                            method: "POST",
                             headers: {
                                 "ngrok-skip-browser-warning": "true",
                                 "bypass-tunnel-reminder": "true",
                             },
+                            body: "This text is supposed to go into a file."
                         });
         
-                        if (!response.ok) {
-                            throw new Error("Download Failed");
-                        }
-
-                        const contentDisposition = response.headers.get("Content-Disposition");
-                        const filename = contentDisposition?.match(/filename="([^"]+)"/)?.[1];
-                        console.log("Saved as:", filename);
-
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = filename ? filename : "file.txt";
-                        a.click();
-
-                        URL.revokeObjectURL(url);
+                        if (!response.ok)
+                            throw new Error("Upload Failed");
 
                         return true;
                     }
@@ -205,8 +200,8 @@
                 const FDB_URL = await mend.get("fiderfdb");
                 
                 let ott = await getOTT();
-                let downloadURL = await getFileURL(ott, "/Projects/helloworld.txt");
-                await getFile(downloadURL);
+                let uploadURL = await getUploadURL(ott, "/Projects", "well2.txt", "plain/text");
+                if (uploadURL) await uploadFile(uploadURL);
             }
 
             getFileBttn.addEventListener("click", async () => {

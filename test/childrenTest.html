@@ -66,13 +66,13 @@
     </head>
     <body>
 
-        <button id="get-file" type="button">Get File</button>
+        <button id="get-file" type="button">Get Children</button>
 
         <script src="mendlib.js"></script>
         <script>
             const getFileBttn = document.querySelector("#get-file");
 
-            const mend = new Mend("https://d588-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
+            const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
 
             getFileBttn.addEventListener("mousedown", () => {
                 if (!getFileBttn.hasAttribute("down"))
@@ -111,80 +111,38 @@
                         }
                         else {
                             throw new Error("Couldn't connect to main server.");
-                            return null;
+                            return false;
                         }
                     }
                 }
             }
 
-            async function getFileURL (ott, path) {
+            async function getChildren (ott, parent) {
                 console.log("FiderFDB: " + await mend.get("fiderfdb"));
                 for (let i = 0; i < 2; i++) {
                     try {
-                        const response = await fetch(await mend.get("fiderfdb") + "/file/download", {
+                        const response = await fetch(await mend.get("fiderfdb") + "/file/children", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
                                 "ngrok-skip-browser-warning": "true",
                                 "bypass-tunnel-reminder": "true",
                             },
-                            body: JSON.stringify({ token: ott, path: path })
+                            body: JSON.stringify({ token: ott, parent: parent })
                         });
         
-                        if (!response.ok) {
-                            throw new Error("Getting Download URL Failed");
+                        if (response.status === 404) {
+                            throw new Error("Getting Children Failed");
                         }
 
-                        const { downloadURL } = await response.json();
-                        console.log(downloadURL);
+                        const data = await response.json();
 
-                        return downloadURL;
-                    }
-                    catch (err) {
-                        if (i === 0) {
-                            console.log("Cannot connect to FiderFDB. Retrying with updated data...");
-                            console.log(err);
-                            await mend.get("fiderfdb", { reget: true });
-                        }
-                        else {
-                            throw new Error("Couldn't connect to FiderFDB.");
-                            return null;
-                        }
-                    }
-                }
-            }
-
-            async function getFile (downloadURL) {
-                console.log("FiderFDB: " + await mend.get("fiderfdb"));
-                for (let i = 0; i < 2; i++) {
-                    try {
-                        const response = await fetch(`${await mend.get("fiderfdb")}/file/download/${downloadURL}`, {
-                            method: "GET",
-                            headers: {
-                                "ngrok-skip-browser-warning": "true",
-                                "bypass-tunnel-reminder": "true",
-                            },
-                        });
-        
-                        if (!response.ok) {
-                            throw new Error("Download Failed");
+                        if (response.status === 400) {
+                            console.error(data.error);
+                            return false;
                         }
 
-                        const contentDisposition = response.headers.get("Content-Disposition");
-                        const filename = contentDisposition?.match(/filename="([^"]+)"/)?.[1];
-                        console.log("Saved as:", filename);
-
-                        const blob = await response.blob();
-                        const url = URL.createObjectURL(blob);
-
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = filename ? filename : "file.txt";
-                        a.click();
-
-                        URL.revokeObjectURL(url);
-
-                        return true;
+                        return data.children;
                     }
                     catch (err) {
                         if (i === 0) {
@@ -205,8 +163,9 @@
                 const FDB_URL = await mend.get("fiderfdb");
                 
                 let ott = await getOTT();
-                let downloadURL = await getFileURL(ott, "/Projects/helloworld.txt");
-                await getFile(downloadURL);
+                if (!ott) return;
+                let children = await getChildren(ott, "/Projects/");
+                if (children) console.log(children);
             }
 
             getFileBttn.addEventListener("click", async () => {

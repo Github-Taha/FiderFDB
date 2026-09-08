@@ -18,7 +18,7 @@ app.set('trust proxy', true);
 
 const PORT = 8081;
 
-const mend = new Mend("https://b0e4-2607-fea8-605b-db00-00-b26.ngrok-free.app", "password");
+const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app", "password");
 
 const GLOBAL_AUTHTOKEN = crypto.randomUUID();
 
@@ -33,7 +33,7 @@ async function sendOTTtoFider (ott, user_id) {
                     "ngrok-skip-browser-warning": "true",
                     "bypass-tunnel-reminder": "true",
                 },
-                body: JSON.stringify({ authtoken: GLOBAL_AUTHTOKEN, token: ott, user_id: user_id })
+                body: JSON.stringify({ authtoken: GLOBAL_AUTHTOKEN, token: ott, userID: user_id })
             });
 
             if (fdbResponse.status != 200)

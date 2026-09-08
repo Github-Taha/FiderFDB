@@ -30,6 +30,28 @@ const PORT = 8080;
 let databases = [];
 
 const downloadMap = new Map();
+const DOWNLOAD_URL_TTL_MS = 60 * 1000;
+
+const uploadMap = new Map();
+const UPLOAD_URL_TTL_MS = 60 * 1000;
+
+let OTTList = [];
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [downloadURL, downloadData] of downloadMap) {
+        if (downloadData.expiresAt <= now)
+            downloadMap.delete(downloadURL);
+    }
+}, DOWNLOAD_URL_TTL_MS);
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [uploadURL, uploadData] of uploadMap) {
+        if (uploadData.expiresAt <= now)
+            uploadMap.delete(uploadURL);
+    }
+}, UPLOAD_URL_TTL_MS);
 
 /*
 Table:
@@ -48,7 +70,7 @@ Database:
     getTables
 */
 
-const mend = new Mend("https://b0e4-2607-fea8-605b-db00-00-b26.ngrok-free.app", "password");
+const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app", "password");
 
 async function loadDatabases () {
     const databaseNames = await fs.promises.readdir("dashDB", { withFileTypes: true });
@@ -120,7 +142,7 @@ function getItemsFromTable (table, cond) {
     return data;
 }
 
-function getChildren (user_id, path) {
+function getChildren (userID, path) {
     // Parse Path
     let items = path.split("/");
     items.shift();
@@ -141,14 +163,14 @@ function getChildren (user_id, path) {
     const fiderdb = databases.find((db) => db.dbname === "Fider");
     const folderTable = fiderdb.tables.find((tbl) => tbl.tableName === "folders");
     const fileTable = fiderdb.tables.find((tbl) => tbl.tableName === "files");
-    let condFolder = `user_id = ${user_id} and parent_id = ${currentParentID}`;
-    let condFile = `user_id = ${user_id} and folder_id = ${currentParentID}`;
+    let condFolder = `user_id = ${userID} and parent_id = ${currentParentID}`;
+    let condFile = `user_id = ${userID} and folder_id = ${currentParentID}`;
 
     let folderList = [], fileList = [];
     
     while (true) {
         console.log("CurrentParentID: " + currentParentID);
-        condFolder = `user_id = ${user_id} and parent_id = ${currentParentID}`;
+        condFolder = `user_id = ${userID} and parent_id = ${currentParentID}`;
 
         folderList = getItemsFromTable(folderTable, condFolder);
 
@@ -172,7 +194,7 @@ function getChildren (user_id, path) {
     }
 
     // Get files as well
-    condFile = `user_id = ${user_id} and folder_id = ${currentParentID}`;
+    condFile = `user_id = ${userID} and folder_id = ${currentParentID}`;
     fileList = getItemsFromTable(fileTable, condFile);
 
     return {
@@ -181,7 +203,7 @@ function getChildren (user_id, path) {
     };
 }
 
-function getItemData (user_id, path) {
+function getItemData (userID, path) {
     // Parse Path
     let items = path.split("/");
     items.shift();
@@ -214,7 +236,7 @@ function getItemData (user_id, path) {
     while (true) {
         // Set {Children Folders} to {Item Children(Folders)({Current Item ID})}
         let childrenFolders = getItemsFromTable(folderTable, 
-            `user_id = ${user_id} and parent_id = ${currentItemID}`
+            `user_id = ${userID} and parent_id = ${currentItemID}`
         );
         console.log("Current Item ID: " + currentItemID);
         console.log("Current Item Index: " + currentItemIndex);
@@ -230,7 +252,7 @@ function getItemData (user_id, path) {
         else if (currentItemIndex === items.length - 1) {
             // Set {Children Files} to {Item Children(Files)({Current Item ID})}
             let childrenFiles = getItemsFromTable(fileTable,
-                `user_id = ${user_id} and folder_id = ${currentItemID}`
+                `user_id = ${userID} and folder_id = ${currentItemID}`
             );
 
             // If (Item[{Current Item Index}] in {Children Files})
@@ -275,8 +297,8 @@ function getItemData (user_id, path) {
     }
 }
 
-function getFilePath(user_id, path) {
-    return `${process.cwd()}/storage/user${user_id}/${path}`;
+function getFilePath(userID, path) {
+    return `${process.cwd()}/storage/user${userID}/${path}`;
 }
 
 app.get("/", (req, res) => {
@@ -332,7 +354,7 @@ app.post("/api/database/create", async (req, res) => {
     const db = await DataBase.create(dbname, []);
 
     databases.push(db);
-    await db.setMetaData(dbname);
+    await db.setMetaData();
 
     res.json({
         created: true
@@ -429,7 +451,7 @@ app.post("/api/table/create", async (req, res) => {
 
     db.tables.push(table);
     db.tableNames.push(tableName);
-    await db.setMetaData(dbname);
+    await db.setMetaData();
 
     res.json({
         created: true
@@ -454,7 +476,7 @@ app.post("/api/table/delete", async (req, res) => {
     // Delete Table
     db.tableNames.splice(tableIdx, 1);
     db.tables.splice(tableIdx, 1);
-    await db.setMetaData(dbname);
+    await db.setMetaData();
 
     res.json({
         deleted: true
@@ -700,17 +722,15 @@ app.post("/api/data/add", async (req, res) => {
 
     // Add Item
     table.addItem(data, db.findEmptyPage());
-    await db.setMetaData(dbname);
+    await db.setMetaData();
 
     res.json({
         added: true,
     });
 });
 
-let OTTList = [];
-
 app.post("/file/OTT", async (req, res) => {
-    const { authtoken, token, user_id } = req.body;
+    const { authtoken, token, userID } = req.body;
 
     const GLOBAL_AUTHTOKEN = await mend.get("global-authtoken", { save: false });
     console.log(GLOBAL_AUTHTOKEN);
@@ -728,10 +748,10 @@ app.post("/file/OTT", async (req, res) => {
     // Store OTT
     OTTList.push({
         token: token,
-        user_id: user_id
+        userID: userID
     });
     console.log("OTT: " + token);
-    console.log("User ID: " + user_id);
+    console.log("User ID: " + userID);
 
     res.json({
         message: "Success"
@@ -757,7 +777,7 @@ app.post("/file/children", async (req, res) => {
     console.log("[/file/children] Validated!");
 
     // getChildren(UserID, path)
-    let childrenOut = getChildren(OTTList[ottIndex].user_id, parent);
+    let childrenOut = getChildren(OTTList[ottIndex].userID, parent);
     OTTList.splice(ottIndex, 1); // Delete OTT
 
     // Send error if any
@@ -771,7 +791,6 @@ app.post("/file/children", async (req, res) => {
 
     // Send children back
     res.json({
-        error: null,
         children: childrenOut.children,
     });
 });
@@ -795,7 +814,7 @@ app.post("/file/data", async (req, res) => {
     console.log("[/file/data] Validated!");
 
     // getItemData(UserID, path)
-    let dataOut = getItemData(OTTList[ottIndex].user_id, path);
+    let dataOut = getItemData(OTTList[ottIndex].userID, path);
     OTTList.splice(ottIndex, 1); // Delete OTT
 
     // Send error if any
@@ -823,42 +842,35 @@ app.post("/file/download", async (req, res) => {
     console.log("[/file/download] Path: " + path);
     
     // Send error if invalid OTT
-    if (ottIndex < 0) {
-        res.status(400).json({
+    if (ottIndex < 0)
+        return res.status(400).json({
             error: "[/file/download] Invalid OTT"
         });
-        return;
-    }
 
     console.log("[/file/download] Validated!");
 
-    const userID = OTTList[ottIndex].user_id;
+    const userID = OTTList[ottIndex].userID;
     OTTList.splice(ottIndex, 1); // Delete OTT
 
-    // Get a download stream to the client
     let dataOut = getItemData(userID, path);
 
-    if (dataOut.error) {
-        res.status(400).json({
+    if (dataOut.error)
+        return res.status(400).json({
             error: "[/file/download] " + dataOut.error,
         });
-        return;
-    }
 
-    if (!dataOut.itemData.mime) {
-        res.status(400).json({
+    if (!dataOut.itemData.mime)
+        return res.status(400).json({
             error: "[/file/download] Not file error",
         });
-        return;
-    }
 
     console.log(dataOut.itemData);
 
-    const filepath = getFilePath(userID, dataOut.itemData.path);
-    console.log("[/file/download] File Path: " + filepath);
-
     const downloadURL = crypto.randomUUID();
-    downloadMap.set(downloadURL, dataOut.itemData);
+    downloadMap.set(downloadURL, {
+        fileData: dataOut.itemData,
+        expiresAt: Date.now() + DOWNLOAD_URL_TTL_MS
+    });
     
     res.json({
         downloadURL: downloadURL
@@ -868,14 +880,20 @@ app.post("/file/download", async (req, res) => {
 app.get("/file/download/:downloadURL", (req, res) => {
     const { downloadURL } = req.params;
 
-    if (!downloadMap.has(downloadURL)) {
-        res.status(401).json({
+    if (!downloadMap.has(downloadURL))
+        return res.status(401).json({
             error: "Invalid download URL: " + downloadURL
         });
-        return;
+
+    const downloadData = downloadMap.get(downloadURL);
+    if (downloadData.expiresAt <= Date.now()) {
+        downloadMap.delete(downloadURL);
+        return res.status(401).json({
+            error: "Download URL expired"
+        });
     }
 
-    const fileData = downloadMap.get(downloadURL);
+    const fileData = downloadData.fileData;
     const filepath = getFilePath(fileData.user_id, fileData.path);
     downloadMap.delete(downloadURL);
     console.log(fileData)
@@ -884,6 +902,120 @@ app.get("/file/download/:downloadURL", (req, res) => {
 
     const stream = fs.createReadStream(filepath);
     stream.pipe(res);
+});
+
+app.post("/file/upload", async (req, res) => {
+    // Verify OTT
+    const { token, parent, name, mime } = req.body;
+    const ottIndex = OTTList.findIndex((n) => n.token == token);
+
+    console.log("[/file/upload] OTT: " + token);
+    console.log("[/file/upload] Parent: " + parent);
+    console.log("[/file/upload] Name: " + name);
+    console.log("[/file/upload] Mime: " + mime);
+
+    // Send error if invalid OTT
+    if (ottIndex < 0)
+        return res.status(400).json({
+            error: "[/file/upload] Invalid OTT"
+        });
+
+    console.log("[/file/upload] Validated!");
+
+    const userID = OTTList[ottIndex].userID;
+    OTTList.splice(ottIndex, 1); // Delete OTT
+
+    let dataOut = getItemData(userID, parent);
+
+    if (dataOut.error)
+        return res.status(400).json({
+            error: "[/file/upload] " + dataOut.error,
+        });
+        
+    if (dataOut.itemData.mime)
+        return res.status(400).json({
+            error: "[/file/upload] Not Folder Error",
+        });
+
+    console.log(dataOut.itemData);
+
+    let exists = getItemData(userID, parent + "/" + name);
+    if (!exists.error)
+        return res.status(400).json({
+            error: "[/file/upload] File already exists",
+        });
+
+    const uploadURL = crypto.randomUUID();
+    uploadMap.set(uploadURL, {
+        fileData: {
+            userID: userID,
+            parentID: dataOut.itemData.id,
+            name: name,
+            mime: mime
+        },
+        expiresAt: Date.now() + UPLOAD_URL_TTL_MS
+    });
+
+    res.json({
+        uploadURL: uploadURL
+    });
+});
+
+app.post("/file/upload/:uploadURL", async (req, res) => {
+    const { uploadURL } = req.params;
+
+    if (!uploadMap.has(uploadURL))
+        return res.status(401).json({
+            error: "Invalid upload URL: " + uploadURL
+        });
+        
+    const uploadData = uploadMap.get(uploadURL);
+    if (uploadData.expiresAt <= Date.now()) {
+        uploadMap.delete(uploadURL);
+        return res.status(401).json({
+            error: "Upload URL expired"
+        });
+    }
+
+    const fileData = uploadData.fileData;
+    const storeFilename = crypto.randomUUID();
+    const filepath = getFilePath(fileData.userID, storeFilename);
+    uploadMap.delete(uploadURL);
+
+    const writeStream = fs.createWriteStream(filepath);
+    req.pipe(writeStream);
+
+    writeStream.on("finish", async () => {
+        // Add file to database
+        const fiderdb = databases.find((db) => db.dbname === "Fider");
+        const fileTable = fiderdb.tables.find((tbl) => tbl.tableName === "files");
+
+        const newFileData = {
+            id: fileTable.entries,
+            user_id: fileData.userID,
+            folder_id: fileData.parentID,
+            name: fileData.name,
+            path: storeFilename,
+            size: fs.statSync(filepath).size,
+            mime: fileData.mime,
+            uploaded_at: Date.now()
+        };
+
+        if (!fileTable.verifyData(newFileData)) {
+            return res.status(400).json({
+                error: "[/file/upload] Invalid file data"
+            });
+        }
+
+        // Add Item
+        fileTable.addItem(newFileData, fiderdb.findEmptyPage());
+        await fiderdb.setMetaData();
+
+        res.json({
+            uploaded: true,
+            fileData: newFileData
+        });
+    });
 });
 
 (async () => {
