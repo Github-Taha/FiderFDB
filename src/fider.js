@@ -70,7 +70,7 @@ Database:
     getTables
 */
 
-const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app", "password");
+const mend = new Mend("https://81b3-2607-fea8-605b-db00-f83b-e40e-3212-6509.ngrok-free.app", "password");
 
 async function loadDatabases () {
     const databaseNames = await fs.promises.readdir("dashDB", { withFileTypes: true });
@@ -1018,6 +1018,65 @@ app.post("/file/upload/:uploadURL", async (req, res) => {
     });
 });
 
+app.post("/file/delete", async (req, res) => {
+    // Verify OTT
+    const { token, path } = req.body;
+    const ottIndex = OTTList.findIndex((n) => n.token == token); 
+
+    console.log("[/file/delete] OTT: " + token);
+    console.log("[/file/delete] Path: " + path);
+    
+    // Send error if invalid OTT
+    if (ottIndex < 0)
+        return res.status(400).json({
+            error: "[/file/delete] Invalid OTT"
+        });
+        
+    console.log("[/file/delete] Validated!");
+
+    // Check for valid path
+    const userID = OTTList[ottIndex].userID;
+    OTTList.splice(ottIndex, 1); // Delete OTT
+    
+    let dataOut = getItemData(userID, path);
+    
+    if (dataOut.error)
+        return res.status(400).json({
+            error: "[/file/delete] " + dataOut.error,
+        });
+
+    const itemData = dataOut.itemData;
+    fs.deleteSync(getFilePath(userID, itemData.path));
+    
+    // NOTE: This method deosn't delete folders recursively, leading to many 
+    //       entries not being deleted. This is a known issue and will
+    //       be fixed in future updates.
+
+    // Delete item from database
+    const fiderdb = databases.find((db) => db.dbname === "Fider");
+    const tableName = itemData.mime ? "files" : "folders";
+    const table = fiderdb.tables.find((tbl) => tbl.tableName === tableName);
+
+    for (let i = 0; i < table.entries; i++) {
+        let item = table.getItem(i);
+
+        if (!item || table.emptyBlocks.includes(i))
+            continue;
+
+        if (item.id != itemData.id)
+            continue;
+
+        table.deleteItem(i);
+        break;
+    }
+
+    await fiderdb.setMetaData();
+
+    res.json({
+        deleted: true,
+    });
+});
+
 (async () => {
     await createFolder("dashDB");
     nativeEngine.init();
@@ -1033,3 +1092,4 @@ app.post("/file/upload/:uploadURL", async (req, res) => {
     console.log("Generated URL:", tunnelURL);
     mend.set("fiderfdb", tunnelURL);
 })();
+

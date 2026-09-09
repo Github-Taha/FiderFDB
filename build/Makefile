@@ -359,7 +359,7 @@ endif
 
 quiet_cmd_regen_makefile = ACTION Regenerating $@
 cmd_regen_makefile = cd $(srcdir); /usr/share/nodejs/node-gyp/gyp/gyp_main.py -fmake --ignore-environment "-Dlibrary=shared_library" "-Dvisibility=default" "-Dnode_root_dir=/usr/include/nodejs" "-Dnode_gyp_dir=/usr/share/nodejs/node-gyp" "-Dnode_lib_file=/usr/include/nodejs/<(target_arch)/node.lib" "-Dmodule_root_dir=/home/kali/Projects/FiderFDB" "-Dnode_engine=v8" "--depth=." "-Goutput_dir=." "--generator-output=build" -I/home/kali/Projects/FiderFDB/build/config.gypi -I/usr/share/nodejs/node-gyp/addon.gypi -I/usr/include/nodejs/common.gypi "--toplevel-dir=." binding.gyp
-Makefile: $(srcdir)/binding.gyp $(srcdir)/node_modules/node-addon-api/node_addon_api.gyp $(srcdir)/node_modules/node-addon-api/except.gypi $(srcdir)/../../../../usr/include/nodejs/common.gypi $(srcdir)/build/config.gypi $(srcdir)/node_modules/node-addon-api/noexcept.gypi $(srcdir)/../../../../usr/share/nodejs/node-gyp/addon.gypi
+Makefile: $(srcdir)/../../../../usr/include/nodejs/common.gypi $(srcdir)/binding.gyp $(srcdir)/node_modules/node-addon-api/noexcept.gypi $(srcdir)/node_modules/node-addon-api/except.gypi $(srcdir)/build/config.gypi $(srcdir)/../../../../usr/share/nodejs/node-gyp/addon.gypi $(srcdir)/node_modules/node-addon-api/node_addon_api.gyp
 	$(call do_cmd,regen_makefile)
 
 # "all" is a concatenation of the "all" targets from all the included
