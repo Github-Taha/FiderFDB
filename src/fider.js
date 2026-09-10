@@ -70,7 +70,7 @@ Database:
     getTables
 */
 
-const mend = new Mend("https://9722-2607-fea8-605b-db00-fb0f-ef2-6ac4-2160.ngrok-free.app", "password");
+const mend = new Mend("https://3add-2607-fea8-605b-db00-00-2e0.ngrok-free.app", "password");
 
 async function loadDatabases () {
     const databaseNames = await fs.promises.readdir("dashDB", { withFileTypes: true });
