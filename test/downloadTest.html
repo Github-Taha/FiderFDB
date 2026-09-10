@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Temporary Site</title>
+        <title>Download Test</title>
 
         <style>
             body {
@@ -68,11 +68,12 @@
 
         <button id="get-file" type="button">Get File</button>
 
+        <script src="global.js"></script>
         <script src="mendlib.js"></script>
         <script>
             const getFileBttn = document.querySelector("#get-file");
 
-            const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
+            const mend = new Mend(MEND_URL);
 
             getFileBttn.addEventListener("mousedown", () => {
                 if (!getFileBttn.hasAttribute("down"))
@@ -207,7 +208,7 @@
                 const FDB_URL = await mend.get("fiderfdb");
                 
                 let ott = await getOTT();
-                let downloadURL = await getFileURL(ott, "/Projects/helloworld.txt");
+                let downloadURL = await getFileURL(ott, "/root/helloworld.txt");
                 await getFile(downloadURL);
             }
 
@@ -224,10 +225,6 @@
                 await mend.get("mainserver");
                 await mend.get("fiderfdb");
             };
-
-            // window.setInterval(async () => {
-            //     getDataWrapper();
-            // }, 10000);
         </script>
     </body>
 </html>

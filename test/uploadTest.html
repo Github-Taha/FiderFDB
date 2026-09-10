@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Temporary Site</title>
+        <title>Upload Test</title>
 
         <style>
             body {
@@ -68,11 +68,12 @@
 
         <button id="get-file" type="button">Upload File</button>
 
+        <script src="global.js"></script>
         <script src="mendlib.js"></script>
         <script>
             const getFileBttn = document.querySelector("#get-file");
 
-            const mend = new Mend("https://28c5-2607-fea8-605b-db00-fb2e-a14d-3d6d-d606.ngrok-free.app");
+            const mend = new Mend(MEND_URL);
 
             getFileBttn.addEventListener("mousedown", () => {
                 if (!getFileBttn.hasAttribute("down"))
@@ -163,7 +164,7 @@
                 }
             }
 
-            async function uploadFile (uploadURL) {
+            async function uploadFile (uploadURL, text) {
                 console.log("FiderFDB: " + await mend.get("fiderfdb"));
                 for (let i = 0; i < 2; i++) {
                     try {
@@ -173,7 +174,7 @@
                                 "ngrok-skip-browser-warning": "true",
                                 "bypass-tunnel-reminder": "true",
                             },
-                            body: "This text is supposed to go into a file."
+                            body: text
                         });
         
                         if (!response.ok)
@@ -200,8 +201,8 @@
                 const FDB_URL = await mend.get("fiderfdb");
                 
                 let ott = await getOTT();
-                let uploadURL = await getUploadURL(ott, "/Projects", "well2.txt", "plain/text");
-                if (uploadURL) await uploadFile(uploadURL);
+                let uploadURL = await getUploadURL(ott, "/root", "helloworld.txt", "plain/text");
+                if (uploadURL) await uploadFile(uploadURL, "This is some text in 'helloworld.txt'.");
             }
 
             getFileBttn.addEventListener("click", async () => {
@@ -217,10 +218,6 @@
                 await mend.get("mainserver");
                 await mend.get("fiderfdb");
             };
-
-            // window.setInterval(async () => {
-            //     getDataWrapper();
-            // }, 10000);
         </script>
     </body>
 </html>

@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Get Children Test</title>
+        <title>Delete Test Site</title>
 
         <style>
             body {
@@ -66,7 +66,7 @@
     </head>
     <body>
 
-        <button id="get-file" type="button">Get Children</button>
+        <button id="get-file" type="button">Delete Item</button>
 
         <script src="global.js"></script>
         <script src="mendlib.js"></script>
@@ -118,18 +118,18 @@
                 }
             }
 
-            async function getChildren (ott, parent) {
+            async function deleteItem (ott, path) {
                 console.log("FiderFDB: " + await mend.get("fiderfdb"));
                 for (let i = 0; i < 2; i++) {
                     try {
-                        const response = await fetch(await mend.get("fiderfdb") + "/file/children", {
+                        const response = await fetch(await mend.get("fiderfdb") + "/file/delete", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
                                 "ngrok-skip-browser-warning": "true",
                                 "bypass-tunnel-reminder": "true",
                             },
-                            body: JSON.stringify({ token: ott, parent: parent })
+                            body: JSON.stringify({ token: ott, path: path })
                         });
         
                         if (response.status === 404) {
@@ -143,7 +143,7 @@
                             return false;
                         }
 
-                        return data.children;
+                        return data.deleted;
                     }
                     catch (err) {
                         if (i === 0) {
@@ -165,8 +165,7 @@
                 
                 let ott = await getOTT();
                 if (!ott) return;
-                let children = await getChildren(ott, "/root/");
-                if (children) console.log(children);
+                await deleteItem(ott, "/root/helloworld.txt");
             }
 
             getFileBttn.addEventListener("click", async () => {
