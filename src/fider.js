@@ -70,7 +70,7 @@ Database:
     getTables
 */
 
-const mend = new Mend("https://81b3-2607-fea8-605b-db00-f83b-e40e-3212-6509.ngrok-free.app", "password");
+const mend = new Mend("https://9722-2607-fea8-605b-db00-fb0f-ef2-6ac4-2160.ngrok-free.app", "password");
 
 async function loadDatabases () {
     const databaseNames = await fs.promises.readdir("dashDB", { withFileTypes: true });
@@ -199,6 +199,21 @@ function getChildren (userID, path) {
 
     return {
         error: null,
+        children: [...folderList, ...fileList]
+    };
+}
+
+function getChildrenID (userID, folderID) {
+    const fiderdb = databases.find((db) => db.dbname === "Fider");
+    const folderTable = fiderdb.tables.find((tbl) => tbl.tableName === "folders");
+    const fileTable = fiderdb.tables.find((tbl) => tbl.tableName === "files");
+    const condFolder = `user_id = ${userID} and parent_id = ${folderID}`;
+    const condFile = `user_id = ${userID} and folder_id = ${folderID}`;
+
+    const folderList = getItemsFromTable(folderTable, condFolder);
+    const fileList = getItemsFromTable(fileTable, condFile);
+
+    return {
         children: [...folderList, ...fileList]
     };
 }
@@ -859,7 +874,7 @@ app.post("/file/download", async (req, res) => {
             error: "[/file/download] " + dataOut.error,
         });
 
-    if (!dataOut.itemData.mime)
+    if (!dataOut.itemData.path)
         return res.status(400).json({
             error: "[/file/download] Not file error",
         });
@@ -932,7 +947,7 @@ app.post("/file/upload", async (req, res) => {
             error: "[/file/upload] " + dataOut.error,
         });
         
-    if (dataOut.itemData.mime)
+    if (dataOut.itemData.path)
         return res.status(400).json({
             error: "[/file/upload] Not Folder Error",
         });
@@ -1037,7 +1052,13 @@ app.post("/file/delete", async (req, res) => {
     // Check for valid path
     const userID = OTTList[ottIndex].userID;
     OTTList.splice(ottIndex, 1); // Delete OTT
-    
+
+    const rootPaths = ["/root", "/root/", "root/", "root"];
+    if (rootPaths.includes(path))
+        return res.status(400).json({
+            error: "[/file/delete] Cannot delete root folder"
+        });
+
     let dataOut = getItemData(userID, path);
     
     if (dataOut.error)
@@ -1045,29 +1066,60 @@ app.post("/file/delete", async (req, res) => {
             error: "[/file/delete] " + dataOut.error,
         });
 
-    const itemData = dataOut.itemData;
-    fs.deleteSync(getFilePath(userID, itemData.path));
-    
-    // NOTE: This method deosn't delete folders recursively, leading to many 
-    //       entries not being deleted. This is a known issue and will
-    //       be fixed in future updates.
 
-    // Delete item from database
     const fiderdb = databases.find((db) => db.dbname === "Fider");
-    const tableName = itemData.mime ? "files" : "folders";
-    const table = fiderdb.tables.find((tbl) => tbl.tableName === tableName);
+    const fileTable = fiderdb.tables.find((tbl) => tbl.tableName === "files");
+    const folderTable = fiderdb.tables.find((tbl) => tbl.tableName === "folders");
 
-    for (let i = 0; i < table.entries; i++) {
-        let item = table.getItem(i);
+    let deleteFilesIDs = [];
+    let deleteFolderIDs = [];
 
-        if (!item || table.emptyBlocks.includes(i))
+    const deleteItemRecursively = async (userID, item) => {
+        if (item.path) {
+            // Is a file, delete it
+            await fs.promises.rm(getFilePath(userID, item.path));
+            deleteFilesIDs.push(item.id);
+            return;
+        }
+
+        // Is a folder, get its children and delete them recursively
+        const childrenOut = getChildrenId(userID, item.id);
+        for (const child of childrenOut.children) {
+            await deleteItemRecursively(userID, child);
+        }
+
+        deleteFolderIDs.push(item.id);
+    };
+
+    await deleteItemRecursively(userID, dataOut.itemData);
+
+    console.log("[/file/delete] delteFilesIDs: ", deleteFilesIDs);
+    console.log("[/file/delete] deleteFolderIDs: ", deleteFolderIDs);
+
+    // Delete items from file table
+    for (let i = 0; i < fileTable.entries; i++) {
+        let item = fileTable.getItem(i);
+
+        if (!item || fileTable.emptyBlocks.includes(i))
             continue;
 
-        if (item.id != itemData.id)
+        if (!deleteFilesIDs.includes(item.id))
             continue;
 
-        table.deleteItem(i);
-        break;
+        fileTable.deleteItem(i);
+    }
+
+    // Delete items from folder table
+    for (let i = 0; i < folderTable.entries; i++) {
+        let item = folderTable.getItem(i);
+
+        if (!item || folderTable.emptyBlocks.includes(i))
+            continue;
+
+        if (!deleteFolderIDs.includes(item.id))
+            continue;
+
+        folderTable.deleteItem(i);
     }
 
     await fiderdb.setMetaData();
