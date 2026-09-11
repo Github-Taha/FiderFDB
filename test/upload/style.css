@@ -1,0 +1,56 @@
+body {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+
+    margin: 0;
+    padding: 0;
+
+    background: rgb(5, 5, 16);
+}
+
+#get-file {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+
+    width: fit-content;
+    height: auto;
+
+    margin: 0px;
+    padding: 20px;
+    padding-left: 30px;
+    padding-right: 30px;
+
+    border: 1px solid rgb(30, 90, 130);
+    border-radius: 50px;
+
+    background-color: rgb(8, 40, 73);
+    box-shadow: rgb(10, 10, 60) 0px 0px 5px 5px;
+
+    color: white;
+    font-size: 30px;
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+    font-weight: normal;
+
+    outline: none;
+
+    scale: 1;
+
+    transition: all 150ms ease-out;
+}
+
+#get-file:hover {
+    border: 1px solid rgb(40, 120, 170);
+    box-shadow: rgb(10, 25, 90) 0px 0px 6px 6px;
+    scale: 1.05;
+}
+
+#get-file[down] {
+    scale: 0.95;
+    box-shadow: rgb(10, 10, 40) 0px 0px 2px 2px;
+}
