@@ -18,7 +18,7 @@ app.set('trust proxy', true);
 
 const PORT = 8081;
 
-const mend = new Mend("https://9722-2607-fea8-605b-db00-fb0f-ef2-6ac4-2160.ngrok-free.app", "password");
+const mend = new Mend("https://94bd-2607-fea8-605b-db00-63a9-53d1-4a97-40a4.ngrok-free.app", "password");
 
 const GLOBAL_AUTHTOKEN = crypto.randomUUID();
 

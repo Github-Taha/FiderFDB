@@ -70,7 +70,7 @@ Database:
     getTables
 */
 
-const mend = new Mend("https://9722-2607-fea8-605b-db00-fb0f-ef2-6ac4-2160.ngrok-free.app", "password");
+const mend = new Mend("https://94bd-2607-fea8-605b-db00-63a9-53d1-4a97-40a4.ngrok-free.app", "password");
 
 async function loadDatabases () {
     const databaseNames = await fs.promises.readdir("dashDB", { withFileTypes: true });
@@ -1126,6 +1126,73 @@ app.post("/file/delete", async (req, res) => {
 
     res.json({
         deleted: true,
+    });
+});
+
+app.post("/file/createFolder", async (req, res) => {
+    // Verify OTT
+    const { token, parent, name } = req.body;
+    const ottIndex = OTTList.findIndex((n) => n.token == token);
+    
+    console.log("[/file/createFolder] OTT: " + token);
+    console.log("[/file/createFolder] Parent: " + parent);
+    console.log("[/file/createFolder] Name: " + name);
+
+    // Send error if invalid OTT
+    if (ottIndex < 0)
+        return res.status(400).json({
+            error: "[/file/createFolder] Invalid OTT"
+        });
+
+    console.log("[/file/createFolder] Validated!");
+
+    const userID = OTTList[ottIndex].userID;
+    OTTList.splice(ottIndex, 1); // Delete OTT
+    
+    let dataOut = getItemData(userID, parent);
+
+    if (dataOut.error)
+        return res.status(400).json({
+            error: "[/file/createFolder] " + dataOut.error,
+        });
+
+    if (dataOut.itemData.path)
+        return res.status(400).json({
+            error: "[/file/createFolder] Not Folder Error",
+        });
+
+    console.log(dataOut.itemData);
+
+    let exists = getItemData(userID, parent + "/" + name);
+    if (!exists.error)
+        return res.status(400).json({
+            error: "[/file/createFolder] Folder already exists",
+        });
+
+    const fiderdb = databases.find((db) => db.dbname === "Fider");
+    const folderTable = fiderdb.tables.find((tbl) => tbl.tableName === "folders");
+
+    const newFolderData = {
+        id: folderTable.entries,
+        user_id: userID,
+        parent_id: dataOut.itemData.id,
+        name: name,
+        created_at: Date.now()
+    };
+
+    if (!folderTable.verifyData(newFolderData)) {
+        return res.status(400).json({
+            error: "[/file/createFolder] Invalid folder data"
+        });
+    }
+
+    // Add Item
+    folderTable.addItem(newFolderData, fiderdb.findEmptyPage());
+    await fiderdb.setMetaData();
+
+    res.json({
+        created: true,
+        folderData: newFolderData
     });
 });
 
