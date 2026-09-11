@@ -8,7 +8,11 @@ const { readFile, createFolder, deleteFolder } = require("./fsHelper");
 const { DataBase, Table } = require("./db");
 const { Mend } = require("./mend");
 const { startNgrok } = require("./tunneling");
-const { download } = require("express/lib/response");
+
+// NOTE: A new update will add JSON files to each user
+//       file that will contain the number of files and 
+//       folders that user has. This will be used to 
+//       generate a unique ID for each file and folder.
 
 app.use(cors({
     origin: "*",
@@ -919,6 +923,7 @@ app.get("/file/download/:downloadURL", (req, res) => {
     stream.pipe(res);
 });
 
+let uploadUsers = [];
 app.post("/file/upload", async (req, res) => {
     // Verify OTT
     const { token, parent, name, mime } = req.body;
@@ -939,6 +944,13 @@ app.post("/file/upload", async (req, res) => {
 
     const userID = OTTList[ottIndex].userID;
     OTTList.splice(ottIndex, 1); // Delete OTT
+
+    if (uploadUsers.includes(userID))
+        return res.status(400).json({
+            error: "[/file/upload] User already uploading a file"
+        });
+    
+    uploadUsers.push(userID);
 
     let dataOut = getItemData(userID, parent);
 
@@ -979,15 +991,18 @@ app.post("/file/upload", async (req, res) => {
 app.post("/file/upload/:uploadURL", async (req, res) => {
     const { uploadURL } = req.params;
 
-    if (!uploadMap.has(uploadURL))
-        return res.status(401).json({
-            error: "Invalid upload URL: " + uploadURL
-        });
+    if (!uploadMap.has(uploadURL)) {
+        uploadUsers.splice(uploadUsers.indexOf(userID), 1);
+        return res.status(400).json({
+                error: "Invalid upload URL: " + uploadURL
+            });    
+    }
         
     const uploadData = uploadMap.get(uploadURL);
     if (uploadData.expiresAt <= Date.now()) {
         uploadMap.delete(uploadURL);
-        return res.status(401).json({
+        uploadUsers.splice(uploadUsers.indexOf(userID), 1);
+        return res.status(400).json({
             error: "Upload URL expired"
         });
     }
@@ -1006,7 +1021,7 @@ app.post("/file/upload/:uploadURL", async (req, res) => {
         const fileTable = fiderdb.tables.find((tbl) => tbl.tableName === "files");
 
         const newFileData = {
-            id: fileTable.entries,
+            id: fileTable.entries - fileTable.emptyBlocks.length,
             user_id: fileData.userID,
             folder_id: fileData.parentID,
             name: fileData.name,
@@ -1017,6 +1032,7 @@ app.post("/file/upload/:uploadURL", async (req, res) => {
         };
 
         if (!fileTable.verifyData(newFileData)) {
+            uploadUsers.splice(uploadUsers.indexOf(fileData.userID), 1);
             return res.status(400).json({
                 error: "[/file/upload] Invalid file data"
             });
@@ -1030,6 +1046,8 @@ app.post("/file/upload/:uploadURL", async (req, res) => {
             uploaded: true,
             fileData: newFileData
         });
+
+        uploadUsers.splice(uploadUsers.indexOf(fileData.userID), 1);
     });
 });
 
@@ -1173,7 +1191,7 @@ app.post("/file/createFolder", async (req, res) => {
     const folderTable = fiderdb.tables.find((tbl) => tbl.tableName === "folders");
 
     const newFolderData = {
-        id: folderTable.entries,
+        id: folderTable.entries - folderTable.emptyBlocks.length,
         user_id: userID,
         parent_id: dataOut.itemData.id,
         name: name,
