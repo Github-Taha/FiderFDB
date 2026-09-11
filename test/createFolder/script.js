@@ -7,44 +7,6 @@ getFileBttn.addEventListener("mousedown", () => {
         getFileBttn.setAttribute("down", "");
 });
 
-async function getOTT() {
-    console.log("Mainserver: " + await mend.get("mainserver"));
-    for (let i = 0; i < 2; i++) {
-        try {
-            const response = await fetch(await mend.get("mainserver") + "/file/fileOTT", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "ngrok-skip-browser-warning": "true",
-                    "bypass-tunnel-reminder": "true",
-                },
-                body: JSON.stringify({ token: "MyToken" })
-            });
-
-            const data = await response.json();
-
-            if (response.status !== 200 || data.error) {
-                throw new Error("Invalid");
-            }
-
-            console.log("OTT: " + data.token);
-
-            return data.token;
-        }
-        catch (err) {
-            if (i === 0) {
-                console.log("Cannot connect to main server. Retrying with updated data...");
-
-                await mend.get("mainserver", { reget: true });
-            }
-            else {
-                throw new Error("Couldn't connect to main server.");
-                return false;
-            }
-        }
-    }
-}
-
 async function createFolder (ott, parent, name) {
     console.log("FiderFDB: " + await mend.get("fiderfdb"));
     for (let i = 0; i < 2; i++) {
@@ -87,12 +49,9 @@ async function createFolder (ott, parent, name) {
 }
 
 async function getDataWrapper () {
-    const MAINSERVER_URL = await mend.get("mainserver");
-    const FDB_URL = await mend.get("fiderfdb");
-    
-    let ott = await getOTT();
+    let ott = await Fider.getOTT(mend);
     if (!ott) return;
-    let folderData = await createFolder(ott, "/root/", "Projects");
+    let folderData = await Fider.createFolder(mend, ott, "/root/", "Documents");
     if (folderData) console.log(folderData);
 }
 
